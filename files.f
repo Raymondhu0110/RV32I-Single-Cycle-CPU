@@ -1,0 +1,15 @@
+ALU/ALU.v
+ALU_Controller/alu_controller.v
+Branch_Jump_Unit/BJ_unit.v
+Data_Memory/Data_mem.v
+Decoder/decoder.v
+Immediate_Generator/ImmediateGenerator.v
+Instruction_Memory/instruction_mem.v
+MUX_ALUSrc/mux_alusrc.v
+MUX_MemtoReg/mux_memtoreg.v
+MUX_PCSrc/mux_pcsrc.v
+PC_Adder/pc_adder.v
+Program_Counter/PC.v
+Register_File/regfile.v
+RV32I_Top/RV32I_top.v
+RV32I_Top/RV32I_final_tb.v
