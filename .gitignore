@@ -1,0 +1,9 @@
+# Simulation outputs
+*_sim
+*.vvp
+*.vcd
+
+# RISC-V build outputs
+*.elf
+*.bin
+*.o
