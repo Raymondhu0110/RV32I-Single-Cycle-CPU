@@ -77,11 +77,62 @@ mem[alu_result]     <= wdata[7:0];
 Verification was performed at both the module and processor levels, followed by an end-to-end execution test using a bare-metal C program compiled with the RISC-V GCC toolchain.
 
 - **Module-level verification:** Individual RTL modules were tested with dedicated Verilog testbenches.
-- **CPU integration verification:** The complete datapath and control logic were verified using `RV32I_final_tb.v`.
-- **Software execution:** A GCC-compiled bare-metal C program was executed on the processor to verify instruction flow, memory access, function calls, branches, and register write-back.
+- **CPU integration verification:** The complete processor was tested using `RV32I_top_tb.v` with dedicated instruction and data memory images to verify integrated datapath and control behavior.
+- **End-to-end software execution:** `RV32I_final_tb.v` executes a bare-metal C program compiled with the RISC-V GCC toolchain and verifies the resulting processor and memory state.
 
 ![Final RV32I CPU Verification](docs/final_verification.png)
 
 The final integration test completed with **6/6 checks passed**, including the expected `global_offset = 50000`, `final_result = 150`, valid stack-pointer placement, successful program termination at the final loop, and no illegal-condition assertion during execution.
 
 See [Verification Details](docs/verification.md) for the complete verification methodology and module-level test coverage.
+
+## Bare-Metal C Program Execution 
+
+The processor was tested with a bare-metal C program compiled for RV32I using the RISC-V GCC toolchain. A minimal assembly startup routine initializes the stack pointer and transfers control to `main`, allowing compiler-generated machine code to execute directly on the implemented processor.
+
+```text
+startup.S + final_code.c
+          ↓
+   RISC-V GCC (RV32I)
+          ↓
+     ELF executable
+          ↓
+       objcopy
+          ↓
+     Raw binary
+          ↓
+final_bin_to_readmemb.py
+          ↓
+final_imem_code.txt
+final_dmem_code.txt
+          ↓
+   RV32I Processor
+```
+The final program exercises several processor capabilities through compiler-generated instructions, including:
+
+- Stack initialization and stack-based local data
+- Structure and pointer-based memory access
+- Arithmetic and shift operations
+- Conditional branching
+- Load and store operations
+- Upper-immediate operations (`LUI`, `AUIPC`)
+- Direct and register-indirect control transfers (`JAL`, `JALR`)
+- Function call and return
+
+The program produces an expected final result of `150`, which is checked by the end-to-end verification test.
+
+See [`programs/README.md`](programs/README.md) for the compilation and memory-image generation workflow.
+
+## Repository Structure
+
+```text
+RV32I-Single-Cycle-CPU/
+├── src/          # Verilog RTL source modules
+├── tb/           # Module-level and CPU-level testbenches
+├── programs/     # Bare-metal C program, startup code, and conversion script
+├── memory/       # Instruction and data memory initialization files
+├── docs/         # Datapath, verification, and engineering documentation
+├── files.f       # Icarus Verilog source file list
+├── .gitignore
+└── README.md
+```
