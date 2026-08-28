@@ -70,7 +70,7 @@ mem[alu_result+3] <= wdata[31:24];
 mem[alu_result+2] <= wdata[23:16];
 mem[alu_result+1]  <= wdata[15:8];
 mem[alu_result]     <= wdata[7:0];
-
+```
 
 ## Verification
 
