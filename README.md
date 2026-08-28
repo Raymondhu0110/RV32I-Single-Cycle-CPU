@@ -58,7 +58,7 @@ The corresponding `LW` and `SW` datapaths are implemented as:
 
 ```verilog
 // LW
-mem_data = {
+3'b010: mem_data = {
     mem[alu_result+3],
     mem[alu_result+2],
     mem[alu_result+1],
@@ -66,7 +66,22 @@ mem_data = {
 };
 
 // SW
-mem[alu_result]   <= wdata[7:0];
-mem[alu_result+1] <= wdata[15:8];
-mem[alu_result+2] <= wdata[23:16];
 mem[alu_result+3] <= wdata[31:24];
+mem[alu_result+2] <= wdata[23:16];
+mem[alu_result+1]  <= wdata[15:8];
+mem[alu_result]     <= wdata[7:0];
+
+
+## Verification
+
+Verification was performed at both the module and processor levels, followed by an end-to-end execution test using a bare-metal C program compiled with the RISC-V GCC toolchain.
+
+- **Module-level verification:** Individual RTL modules were tested with dedicated Verilog testbenches.
+- **CPU integration verification:** The complete datapath and control logic were verified using `RV32I_final_tb.v`.
+- **Software execution:** A GCC-compiled bare-metal C program was executed on the processor to verify instruction flow, memory access, function calls, branches, and register write-back.
+
+![Final RV32I CPU Verification](docs/final_verification.png)
+
+The final integration test completed with **6/6 checks passed**, including the expected `global_offset = 50000`, `final_result = 150`, valid stack-pointer placement, successful program termination at the final loop, and no illegal-condition assertion during execution.
+
+See [Verification Details](docs/verification.md) for the complete verification methodology and module-level test coverage.
