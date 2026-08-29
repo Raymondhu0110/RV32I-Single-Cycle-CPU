@@ -148,6 +148,27 @@ The Immediate Generator testbench verifies immediate-field reconstruction and ex
 
 Positive and negative immediates are tested for I-, S-, B-, and J-type formats to verify correct reconstruction and sign extension to 32 bits. B- and J-type tests additionally verify the split immediate encoding and the implicit low-order zero bit used by PC-relative branch and jump offsets.
 
+
+## Datapath Component Verification
+
+Several simple combinational datapath components are verified with dedicated testbenches. Because these modules primarily implement multiplexing and address-generation behavior, their verification coverage is summarized together.
+
+| Module | Testbench | Verification Coverage |
+| --- | --- | --- |
+| ALU Source MUX | `tb/mux_alusrc_tb.v` | Verifies both ALU operand selections: register data (`ALUSrc = 0`) and generated immediate (`ALUSrc = 1`) |
+| Memory-to-Register MUX | `tb/mux_memtoreg_tb.v` | Verifies all five supported register write-back sources, illegal `MemtoReg` encodings, and recovery from an illegal control state |
+| PC Source MUX | `tb/mux_pcsrc_tb.v` | Verifies `PC + 4`, `PC + immediate`, and JALR target selection, including clearing bit 0 of the JALR target; also verifies illegal `PCSrc` detection and recovery |
+| PC Adder | `tb/pc_adder_tb.v` | Verifies `PC + 4`, positive and negative PC-relative offsets, and 32-bit address wrap-around |
+
+The ALU Source MUX testbench verifies both possible selections of the second ALU operand. The Memory-to-Register MUX testbench covers the five implemented write-back sources: ALU result, memory data, `PC + 4`, immediate, and `PC + immediate`. Unsupported `MemtoReg` values are also tested to verify `illegal_control`.
+
+The PC Source MUX verifies all implemented next-PC paths. In addition to sequential execution and PC-relative branch/jump targets, the JALR path is tested with both even and odd ALU-generated addresses. An odd target such as `0x00003005` is converted to `0x00003004`, verifying the RISC-V requirement that bit 0 of the JALR target is cleared.
+
+The PC Adder testbench verifies both forward and backward PC-relative address generation using positive and negative immediates. It also checks 32-bit wrap-around behavior at the upper address boundary.
+
+Each testbench generates a VCD file for optional waveform inspection and debugging.
+
+**Result:** PASS
 U-type tests verify that the 20-bit immediate field is placed in bits `[31:12]` of the generated value while the lower 12 bits are cleared. Both `LUI` and `AUIPC` opcode cases are covered.
 
 The testbench also verifies that an unsupported opcode asserts `illegal_ins`. It generates `imm_gen_wave.vcd` for optional waveform inspection and debugging.
