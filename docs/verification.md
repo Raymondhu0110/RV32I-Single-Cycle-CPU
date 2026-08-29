@@ -1,5 +1,5 @@
-## ALU Verification
-
+### ALU Verification
+---
 **Testbench:** `tb/ALU_tb.v`
 
 The ALU testbench is a self-checking combinational testbench that verifies the arithmetic, logical, shift, and comparison operations implemented by the ALU.
