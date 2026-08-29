@@ -129,3 +129,27 @@ The primary verification focus is the mapping from each supported opcode to the 
 An unsupported opcode is applied to verify that `illegal_ins` is asserted. The testbench also generates `decoder_wave.vcd` for optional waveform inspection and debugging.
 
 **Result:** PASS
+
+
+## Immediate Generator Verification
+
+**Testbench:** `tb/ImmediateGenerator_tb.v`
+
+The Immediate Generator testbench verifies immediate-field reconstruction and extension for the instruction formats that require immediate operands. The tests cover both contiguous and split immediate encodings, including sign extension and the implicit low-order zero bit used by branch and jump offsets.
+
+| Immediate Type | Verification Coverage |
+| --- | --- |
+| I-type | Positive and negative sign extension; ALU-immediate, load, and `JALR` cases |
+| S-type | Split-field reconstruction with positive and negative immediates |
+| B-type | Split-field reconstruction with positive and negative offsets, including sign extension and implicit `imm[0] = 0` |
+| U-type | Upper-immediate placement in bits `[31:12]` with the lower 12 bits cleared; `LUI` and `AUIPC` |
+| J-type | Split-field reconstruction with positive and negative offsets, including sign extension and implicit `imm[0] = 0` |
+| Illegal opcode | Assertion of `illegal_ins` for an unsupported opcode |
+
+Positive and negative immediates are tested for I-, S-, B-, and J-type formats to verify correct reconstruction and sign extension to 32 bits. B- and J-type tests additionally verify the split immediate encoding and the implicit low-order zero bit used by PC-relative branch and jump offsets.
+
+U-type tests verify that the 20-bit immediate field is placed in bits `[31:12]` of the generated value while the lower 12 bits are cleared. Both `LUI` and `AUIPC` opcode cases are covered.
+
+The testbench also verifies that an unsupported opcode asserts `illegal_ins`. It generates `imm_gen_wave.vcd` for optional waveform inspection and debugging.
+
+**Result:** PASS
