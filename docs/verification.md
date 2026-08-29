@@ -1,4 +1,4 @@
-### ALU Verification
+## ALU Verification
 
 **Testbench:** `tb/ALU_tb.v`
 
@@ -31,7 +31,7 @@ The testbench automatically records pass/fail results for each test case and rep
 **Result:** PASS
 
 
-### ALU Controller Verification
+## ALU Controller Verification
 
 **Testbench:** `tb/alu_controller_tb.v`
 
