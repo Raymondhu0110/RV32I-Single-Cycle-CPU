@@ -103,3 +103,29 @@ Legal store operations are explicitly checked to ensure that they do not assert 
 The testbench automatically records pass/fail results and reports a final summary. It also generates `dmem_wave.vcd` for optional waveform inspection and debugging.
 
 **Result:** PASS
+
+
+## Decoder Verification
+
+**Testbench:** `tb/decoder_tb.v`
+
+The Decoder testbench verifies instruction classification and control-signal generation based on the instruction opcode. It also checks selected instruction-field outputs (`rd`, `rs1`, `rs2`, `funct3`, and `funct7`) that are extracted directly from fixed instruction bit fields.
+
+| Instruction Class | Verification Coverage |
+| --- | --- |
+| R-type ALU | Register-source ALU operation and register write-back control |
+| I-type ALU | Immediate ALU operation and register write-back control |
+| Load | Address calculation, memory read, and memory-to-register write-back |
+| Store | Address calculation and memory write control |
+| Branch | Branch comparison control |
+| `LUI` | Immediate write-back selection |
+| `AUIPC` | PC-plus-immediate write-back selection |
+| `JAL` | Jump control and `PC + 4` write-back |
+| `JALR` | ALU-generated jump target and `PC + 4` write-back |
+| Illegal opcode | Assertion of `illegal_ins` for an unsupported opcode |
+
+The primary verification focus is the mapping from each supported opcode to the expected datapath control signals. Instruction fields that are directly extracted from fixed bit positions are also checked in representative cases.
+
+An unsupported opcode is applied to verify that `illegal_ins` is asserted. The testbench also generates `decoder_wave.vcd` for optional waveform inspection and debugging.
+
+**Result:** PASS
