@@ -172,9 +172,23 @@ module imm_gen_tb;
         else
             $display("J-type +8:       FAIL");
 
+        // ==========================================
+        // Test 11: J-type negative immediate
+        //
+        // offset = -4
+        // expected imm = 0xFFFF_FFFC
+        // ==========================================
+        instruction = 32'b1_1111111110_1_11111111_00001_1101111;
+        #1;
+
+        if (imm === 32'hFFFF_FFFC && illegal_ins === 1'b0)
+            $display("J-type -4:       PASS");
+        else
+            $display("J-type -4:       FAIL");
+
 
         // ==========================================
-        // Test 11: JALR uses I-type immediate
+        // Test 12: JALR uses I-type immediate
         // immediate = +16
         // ==========================================
         instruction = 32'b000000010000_00001_000_00010_1100111;
@@ -187,7 +201,7 @@ module imm_gen_tb;
 
 
         // ==========================================
-        // Test 12: Illegal opcode
+        // Test 13: Illegal opcode
         // ==========================================
         instruction = 32'b0000000_00000_00000_000_00000_1111111;
         #1;
