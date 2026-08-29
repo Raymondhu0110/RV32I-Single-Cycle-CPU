@@ -27,9 +27,7 @@ module mux_memtoreg_tb;
         $dumpfile("mux_memtoreg_wave.vcd");
         $dumpvars(0, mux_memtoreg_tb);
 
-
-        // 給五個 input 完全不同的值
-        // 這樣才能清楚知道 MUX 到底選了誰
+        
         alu_result = 32'hAAAA_AAAA;
         mem_data   = 32'hBBBB_BBBB;
         pc_4       = 32'hCCCC_CCCC;
