@@ -174,3 +174,126 @@ U-type tests verify that the 20-bit immediate field is placed in bits `[31:12]` 
 The testbench also verifies that an unsupported opcode asserts `illegal_ins`. It generates `imm_gen_wave.vcd` for optional waveform inspection and debugging.
 
 **Result:** PASS
+
+
+## Program Counter Verification
+
+**Testbench:** `tb/PC_tb.v`
+
+The Program Counter testbench verifies the sequential update behavior of the PC register, including asynchronous reset, clock-controlled updates, enable-based hold behavior, and reset priority.
+
+| Test Category | Verification Coverage |
+| --- | --- |
+| Asynchronous reset | Verifies that asserting active-low `rst_n` immediately clears the PC without waiting for a clock edge |
+| Enabled update | Verifies that `pc` captures `next_pc` on the rising clock edge when `enable = 1` |
+| Disabled hold | Verifies that the previous PC value is preserved when `enable = 0` |
+| Clocked behavior | Verifies that changes to `next_pc` do not affect the PC before a rising clock edge |
+| Reset during operation | Verifies that asynchronous reset clears the PC while the processor is otherwise enabled |
+| Reset priority | Verifies that reset overrides `enable` when both conditions are active |
+| Recovery | Verifies normal PC updates after reset is released |
+
+The testbench distinguishes asynchronous reset behavior from normal clocked PC updates. In particular, changing `next_pc` alone does not modify the stored PC value; the update occurs only on a rising clock edge when `enable` is asserted.
+
+Reset priority is also explicitly tested by keeping `enable` asserted while `rst_n` remains low. The PC remains cleared, confirming that reset takes precedence over normal state updates.
+
+The testbench automatically records pass/fail results and reports a final summary. It also generates `pc_wave.vcd` for optional waveform inspection and debugging.
+
+**Result:** PASS
+
+
+## Register File Verification
+
+**Testbench:** `tb/regfile_tb.v`
+
+The Register File testbench verifies synchronous register writes, asynchronous dual-port reads, write-enable behavior, x0 protection, reset behavior, and access across the 5-bit register address range.
+
+| Test Category | Verification Coverage |
+| --- | --- |
+| Reset | Verifies that registers x1–x31 are cleared by the asynchronous active-low reset |
+| Register write/read | Writes 32-bit values on rising clock edges and verifies correct read-back |
+| Dual-port read | Verifies simultaneous reads from two different registers through `rdata1` and `rdata2` |
+| Write disable | Verifies that `we = 0` prevents modification of the selected register |
+| x0 behavior | Verifies that x0 always reads zero and rejects attempted writes |
+| Address range | Verifies access to x31, covering the upper end of the 5-bit register address space |
+| Write timing | Verifies that register contents do not change before the rising clock edge and are updated at the edge |
+| Runtime reset | Verifies that asynchronous reset clears previously written register values during operation |
+
+The reset test iterates through registers x1–x31 and verifies that every register has been cleared. A testbench flag is used to combine these individual checks into a single reset pass/fail result.
+
+Register writes are verified as synchronous operations: write data does not become visible before the rising clock edge, and a write occurs only when `we` is asserted. In contrast, the two read ports are combinational and are tested simultaneously using independently selected register addresses.
+
+The architectural x0 register is verified separately. Both read ports return zero when addressing x0, and an attempted write to x0 does not change its externally visible value.
+
+The testbench automatically records pass/fail results and reports a final summary. It also generates `regfile_wave.vcd` for optional waveform inspection and debugging.
+
+**Result:** PASS
+
+
+## CPU Integration Verification
+
+**Testbench:** `tb/RV32I_top_tb.v`
+
+The complete processor is verified at the integration level by executing a small hand-defined RV32I program. Unlike the module-level tests, this testbench verifies that the individual datapath and control modules operate correctly when connected as a complete processor.
+
+The test program performs the following instruction sequence:
+
+```text
+ADDI x1, x0, 5
+ADDI x2, x0, 7
+ADD  x3, x1, x2
+SUB  x4, x3, x1
+JAL  x0, 0
+```
+
+The final `JAL` instruction forms a self-loop at PC = 16. The testbench monitors execution until this PC value is observed for three consecutive cycles, with a maximum-cycle limit used to prevent an incorrect processor state from causing an infinite simulation.
+
+| Integration Check | Expected Behavior |
+| --- | --- |
+| Program completion | Processor reaches and remains in the final `JAL` loop at PC = 16 |
+| Register results | `x1 = 5`, `x2 = 7`, `x3 = 12`, and `x4 = 7` |
+| x0 behavior | Every observed read of x0 returns zero |
+| Illegal-condition monitoring | No illegal-condition signal is observed during program execution |
+
+Illegal-condition outputs from the Decoder, Branch/Jump Unit, Immediate Generator, ALU Controller, Data Memory, Memory-to-Register MUX, and PC Source MUX are monitored throughout execution. Sticky verification flags record any illegal condition once it occurs, ensuring that a transient error cannot be hidden by the signal returning to zero later.
+
+The testbench also monitors architectural x0 behavior during execution. Whenever either source-register address selects x0, the corresponding register-file read output is checked to ensure that it remains zero.
+
+Execution is observed cycle by cycle, allowing the current PC, instruction, register state, and control behavior to be correlated with the generated `RV32I_top_wave.vcd` waveform. If an integration error occurs, the failing instruction can therefore be located in the execution sequence and traced through the relevant datapath and control signals.
+
+This integration test verifies the interaction of instruction fetch, decode, register access, ALU execution, PC update, and register write-back across multiple instructions rather than testing these components in isolation.
+
+The testbench automatically records pass/fail results and reports a final summary. It also generates `RV32I_top_wave.vcd` for cycle-by-cycle waveform inspection and debugging.
+
+**Result:** PASS
+
+
+## End-to-End Software Verification
+
+**Testbench:** `tb/RV32I_final_tb.v`
+
+The final verification stage executes a bare-metal C program compiled for RV32I using the RISC-V GCC toolchain. This test extends beyond the hand-defined integration program by verifying the processor with compiler-generated instructions, initialized global data, stack usage, function calls, memory accesses, conditional control flow, and function return behavior.
+
+The processor executes the program until it reaches the final self-loop at PC = `0x0000006C`. A maximum-cycle limit is used to prevent an incorrect processor state from causing an infinite simulation.
+
+| End-to-End Check | Expected Behavior |
+| --- | --- |
+| Program completion | Processor reaches the final loop at PC = `0x0000006C` |
+| Global data initialization | `global_offset` at DMEM address `0x1070` contains `50000` |
+| C program result | `final_result` at DMEM address `0x1074` contains `150` |
+| Stack placement | Stack pointer `x2` remains within the implemented 16 KiB DMEM address range |
+| Current illegal conditions | All illegal-condition outputs are zero at the end of execution |
+| Full-execution illegal monitoring | No illegal-condition output was observed during program execution |
+
+The initialized global variable `global_offset` is read directly from DMEM and checked against its expected value of `50000`. This verifies that initialized program data is correctly represented in the generated data-memory image.
+
+The final program result is also read directly from DMEM. The expected value of `150` verifies that the compiler-generated program successfully executes the required arithmetic, shift, load/store, branch, function-call, and function-return behavior.
+
+The stack pointer is checked against the implemented memory depth to ensure that stack execution remains within the processor's 16 KiB data-memory address range.
+
+As in the CPU integration test, illegal-condition outputs from the Decoder, Branch/Jump Unit, Immediate Generator, ALU Controller, Data Memory, Memory-to-Register MUX, and PC Source MUX are monitored throughout execution. Sticky verification flags preserve any illegal condition observed during execution, allowing transient errors to be detected even if the corresponding signal later returns to zero.
+
+The final test therefore verifies the complete execution path from compiler-generated software and initialized memory images through processor execution to the expected architectural and memory state.
+
+The testbench automatically records pass/fail results and reports a final summary. It also generates `RV32I_final_wave.vcd` for cycle-by-cycle waveform inspection and debugging.
+
+**Result:** 6/6 checks passed
