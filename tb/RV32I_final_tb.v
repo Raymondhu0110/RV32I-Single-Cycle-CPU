@@ -22,9 +22,6 @@ module RV32I_final_tb;
 
     // ==========================================
     // Sticky illegal flags
-    //
-    // 一旦偵測到 illegal，就保持為 1
-    // 直到 reset
     // ==========================================
     reg decoder_illegal_seen;
     reg BJ_illegal_seen;
@@ -60,9 +57,6 @@ module RV32I_final_tb;
 
     // ==========================================
     // Record illegal signals during execution
-    //
-    // 每個 rising edge 對應一條正在執行的指令。
-    // 只在 reset 已解除且 CPU enable 時記錄。
     // ==========================================
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -273,8 +267,6 @@ module RV32I_final_tb;
 
         // ==========================================
         // Test 5: Current illegal signals
-        //
-        // 檢查程式結束當下的訊號。
         // ==========================================
         if (
             decoder_illegal_ins         === 1'b0 &&
@@ -308,8 +300,6 @@ module RV32I_final_tb;
 
         // ==========================================
         // Test 6: Illegal signals over full execution
-        //
-        // 這是本次新增的關鍵測試。
         // ==========================================
         if (
             decoder_illegal_seen         === 1'b0 &&
