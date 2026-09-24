@@ -60,7 +60,7 @@ That question eventually led me to branches and jumps.
 
 Before I understood instruction formats or even the term *single-cycle datapath*, I drew my first processor architecture from this task-oriented mental model. I imagined software producing a list of operations, instruction memory holding that list, and the processor moving through it while the decoder directed the required hardware.
 
-![Initial processor concept](images/datapath_initial.png)
+![Initial processor concept](/images/datapath_initial.png)
 
 The drawing was incomplete and contained assumptions that were later revised, but it was useful because it exposed what I still could not explain. I could draw blocks and arrows, but I did not yet understand how the processor decided which paths should actually carry meaningful data for each instruction.
 
@@ -74,7 +74,7 @@ This also corrected an earlier software-like assumption I had been making. Hardw
 
 My second architecture sketch began to reflect this change. Instead of only showing major functional blocks, it increasingly included the control paths and multiplexers required to coordinate them.
 
-![Developing processor datapath](images/datapath_v2.png)
+![Developing processor datapath](/images/datapath_v2.png)
 
 ### 1.4 Growing into an RV32I Datapath
 
@@ -104,7 +104,7 @@ Branches made these relationships especially clear. Supporting `BEQ`, `BNE`, `BL
 
 My next architecture revision reflected these additional control relationships.
 
-![Processor datapath with branch control](images/datapath_v3.png)
+![Processor datapath with branch control](/images/datapath_v3.png)
 
 The Immediate Generator completed another major part of the architecture. Implementing I-, S-, B-, U-, and J-type immediates forced me to understand how instruction bits are reconstructed, sign-extended, and used by different datapath paths.
 
@@ -128,7 +128,7 @@ Register write-back
 
 The final conceptual datapath was therefore not something I designed in one step. It emerged through repeated revisions as I learned which data paths were required and which module should be responsible for each decision.
 
-![Final conceptual datapath](images/datapath_final.png)
+![Final conceptual datapath](/images/datapath_final.png)
 
 Looking back at the four architecture sketches, the most important change is not simply that the final drawing contains more blocks and wires. The early diagrams represented the processor as a sequence of tasks moving between components. The later diagrams represent it as a controlled datapath in which instruction encoding, combinational computation, state, and control signals work together to determine the architectural state transition of each instruction.
 
