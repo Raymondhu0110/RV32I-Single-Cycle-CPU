@@ -114,3 +114,83 @@ The final conceptual datapath was therefore not something I designed in one step
 Looking back at the four architecture sketches, the most important change is not simply that the final drawing contains more blocks and wires. The early diagrams represented the processor as a sequence of tasks moving between components. The later diagrams represent it as a controlled datapath in which instruction encoding, combinational computation, state, and control signals work together to determine the architectural state transition of each instruction.
 
 That change in mental model—from asking what each individual module does to asking how responsibilities and data movement should be organized across the complete processor—was one of the most important outcomes of the project.
+
+
+
+## 2. Refining the Control Architecture
+
+As I became more familiar with the RV32I instruction formats, I began to reconsider some of my earlier control logic decisions. One of the most significant changes involved the ALU Controller. My initial design appeared reasonable when I understood only a limited set of instructions, but learning the remaining instruction formats exposed a fundamental problem in how I had classified ALU operations.
+
+### 2.1 Rethinking ALU Control
+
+My initial ALU Controller used a hierarchical decoding structure based on `ALUop`, `funct3`, and `funct7`. The main Decoder generated `ALUop` to identify the general operation category, while the ALU Controller interpreted the remaining instruction fields to select a specific ALU operation. 
+
+Initially, I divided ALU operations into three categories:
+
+| ALUop | Instruction Category | ALU Controller Behavior |
+| --- | --- | --- |
+| `00` | Load / Store | Force ADD for address calculation |
+| `01` | Branch | Select SUB, SLT, or SLTU according to `funct3` |
+| `10` | R-type / I-type ALU | Select the operation using `funct3` and `funct7` |
+
+At first, combining R-type and I-type arithmetic instructions seemed reasonable. Both instruction types ultimately use the same ALU hardware: `ADD` and `ADDI`, for example, require the same addition operation once their operands have been selected. I initially focused on this similarity in execution rather than the differences in instruction encoding. However, after studying the complete RV32I instruction formats, I realized that the original classification contained a significant design flaw. In R-type instructions, `instruction[31:25]` represents `funct7`, which distinguishes operations such as `ADD` and `SUB`, or `SRL` and `SRA`. In ordinary I-type arithmetic instructions, those same bits are part of the immediate operand. Interpreting them unconditionally as `funct7` could therefore cause a valid I-type instruction to be incorrectly classified as illegal.
+
+<p align="center">
+  <img src="/images/instruction_formats_notes.jpg" width="90%" alt="Handwritten notes on the six RV32I instruction formats">
+  <br>
+  <em>Figure 5. My handwritten notes on the six RV32I instruction formats.</em>
+</p>
+
+I identified this problem by revisiting my earlier design after learning the instruction formats, rather than through a failing testbench. The issue was not that the ALU could not perform the required operations; it was that my ALU Controller did not correctly distinguish the meaning of the instruction fields before decoding them.
+
+I redesigned `ALUop` to separate R-type and I-type arithmetic instructions:
+
+| ALUop | Instruction Category | ALU Controller Behavior |
+| --- | --- | --- |
+| `00` | Load / Store | Force ADD for address calculation |
+| `01` | Branch | Select SUB, SLT, or SLTU |
+| `10` | I-type ALU | Decode I-type arithmetic and shift-immediate instructions |
+| `11` | R-type ALU | Decode R-type arithmetic and logical instructions |
+
+This separation allowed the ALU Controller to interpret each instruction format according to its actual encoding, rather than applying the same `funct7` checks to both categories. The distinction became especially clear when examining shift instructions. RV32I R-type instructions contain ten arithmetic and logical operations, so `funct3` alone cannot distinguish every operation. The combinations `funct3=000` and `funct3=101` use additional encoding bits to distinguish `ADD` from `SUB` and `SRL` from `SRA`, respectively. I-type arithmetic instructions present a related but different situation. Most use a 12-bit immediate operand, while `SLLI`, `SRLI`, and `SRAI` use a five-bit shift amount in RV32I. Their remaining upper instruction bits contain the encoding information needed to distinguish the shift operations and validate their instruction encodings. In particular, `SRLI` and `SRAI` share `funct3=101` and are distinguished by their upper encoding bits.
+
+Studying these differences helped me understand that instruction encoding and ALU operation selection are related but separate concerns. Two instructions may perform the same ALU operation while requiring different decoding rules. The revised `ALUop` classification made that distinction explicit in my implementation.
+
+
+### 2.2 Decoding Branch Instructions
+
+While implementing the ALU Controller, I noticed an interesting feature of the six RV32I conditional branch instructions. Although they use six different `funct3` encodings, the ALU only needs three operations to support their comparisons: SUB, SLT, and SLTU.
+
+The ALU Controller therefore maps each pair of branch instructions to the same operation:
+
+| `funct3` | Branch | ALU Operation |
+| --- | --- | --- |
+| `000` | BEQ | SUB |
+| `001` | BNE | SUB |
+| `100` | BLT | SLT |
+| `101` | BGE | SLT |
+| `110` | BLTU | SLTU |
+| `111` | BGEU | SLTU |
+
+However, the six encodings cannot simply be reduced to three categories throughout the entire processor. Although the ALU Controller only needs to select the comparison operation, the Branch/Jump Unit still needs to distinguish the exact branch instruction. It uses `funct3` to determine whether the corresponding comparison result should cause a branch to be taken. For example, BEQ and BNE both require subtraction to determine whether two operands are equal, but they interpret the resulting `zero` flag in opposite ways. The same relationship applies to BLT/BGE and BLTU/BGEU, which respectively use signed and unsigned comparisons.
+
+This helped me understand why the same instruction field may serve different purposes in different control modules. The ALU Controller interprets `funct3` to select the required comparison operation, while the Branch/Jump Unit uses it to distinguish the six branch conditions. The three ALU operations are sufficient for computation, but the six instruction encodings remain necessary for selecting the correct branch behavior.
+
+### 2.3 Refining the ALU Interface and Module Responsibilities
+
+My early ALU included five status outputs: `zero`, `carry`, `negative`, `overflow`, and `borrow`. At that stage, I was learning how arithmetic flags worked, but I had not yet determined which information the complete processor would actually need. After extending the ALU to support `SLL`, `SRL`, `SRA`, `SLT`, and `SLTU`, and studying the six conditional branch instructions, I reconsidered the ALU interface. Rather than retaining every status flag from the original design, I decided to expose three outputs that directly supported the processor's branch logic: `zero`, `less_signed`, and `less_unsigned`.
+
+This change was also connected to how I wanted to divide responsibilities between modules. I assigned arithmetic and comparison operations to the ALU, while the Branch/Jump Unit would interpret the comparison results and determine the next-PC selection. The Branch/Jump Unit therefore uses three kinds of information: the `Branch`, `Jump`, and `Jalr` control signals generated by the Decoder; the comparison flags generated by the ALU; and the instruction's `funct3` field, which distinguishes individual branch conditions.
+
+| Module | Responsibility |
+| --- | --- |
+| Decoder | Decodes the instruction and generates major control signals, including `Branch`, `Jump`, and `Jalr` |
+| ALU Controller | Selects the ALU operation using `ALUop` and the relevant instruction fields |
+| ALU | Performs the selected operation and generates `zero`, `less_signed`, and `less_unsigned` |
+| Branch/Jump Unit | Interprets branch/jump controls, `funct3`, and comparison flags to generate `PCSrc` |
+
+The distinction was particularly important for the Branch/Jump Unit. It did not need to perform subtraction or signed and unsigned comparisons itself. Instead, it received the results of those operations and determined whether the current instruction required sequential execution, a PC-relative branch or jump, or a JALR target. I did not choose this organization because I had demonstrated that it would produce the fastest processor. My goal was to establish clear responsibilities between the modules so that I could understand each part of the control architecture independently and verify its behavior with dedicated testbenches.
+
+### 2.4 Lessons in Control Architecture
+
+Revising the ALU Controller taught me that instructions sharing the same execution hardware do not necessarily share the same decoding rules. Separating R-type and I-type control allowed me to interpret their instruction fields correctly instead of relying on an overly broad classification. The branch logic taught me a related but distinct lesson. Multiple instructions can share the same underlying computation while requiring different decisions about how the result is used. By separating instruction decoding, ALU operation selection, comparison, and branch decisions, I developed a clearer understanding of how control responsibilities could be distributed across the processor.
