@@ -136,7 +136,7 @@ Initially, I divided ALU operations into three categories:
 At first, combining R-type and I-type arithmetic instructions seemed reasonable. Both instruction types ultimately use the same ALU hardware: `ADD` and `ADDI`, for example, require the same addition operation once their operands have been selected. I initially focused on this similarity in execution rather than the differences in instruction encoding. However, after studying the complete RV32I instruction formats, I realized that the original classification contained a significant design flaw. In R-type instructions, `instruction[31:25]` represents `funct7`, which distinguishes operations such as `ADD` and `SUB`, or `SRL` and `SRA`. In ordinary I-type arithmetic instructions, those same bits are part of the immediate operand. Interpreting them unconditionally as `funct7` could therefore cause a valid I-type instruction to be incorrectly classified as illegal.
 
 <p align="center">
-  <img src="/images/instruction_formats_notes.jpg" width="90%" alt="Handwritten notes on the six RV32I instruction formats">
+  <img src="/images/instruction_formats_notes.png" width="90%" alt="Handwritten notes on the six RV32I instruction formats">
   <br>
   <em>Figure 5. My handwritten notes on the six RV32I instruction formats.</em>
 </p>
