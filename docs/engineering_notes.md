@@ -87,6 +87,11 @@ Branches made these relationships especially clear. Supporting `BEQ`, `BNE`, `BL
 
 The Immediate Generator completed another major part of the architecture. Implementing I-, S-, B-, U-, and J-type immediates forced me to understand how instruction bits are reconstructed, sign-extended, and used by different datapaths. Adding `JAL`, `JALR`, `LUI`, and `AUIPC` then expanded both next-PC selection and register write-back. The write-back multiplexer eventually grew to support five sources, while the PC Source MUX selected among sequential execution, PC-relative targets, and the JALR target.
 
+
+Another detail I encountered while implementing the PC selection logic was the special handling required by `JALR`. Unlike a PC-relative branch or `JAL`, `JALR` calculates its target by adding a sign-extended immediate to the value in `rs1`. The lowest bit of the resulting address must then be cleared.
+
+I implemented this behavior in the PCSrc MUX using `{alu_result[31:1], 1'b0}`. This allowed the ALU to perform the complete address calculation before the final target address was selected. It also helped me understand why the immediate itself should not have its lowest bit cleared: doing so before addition could produce a different target address.
+
 At this point, adding an instruction no longer meant simply "teaching the ALU another operation." An instruction could affect several parts of the processor simultaneously:
 
 ```text
@@ -191,6 +196,235 @@ This change was also connected to how I wanted to divide responsibilities betwee
 
 The distinction was particularly important for the Branch/Jump Unit. It did not need to perform subtraction or signed and unsigned comparisons itself. Instead, it received the results of those operations and determined whether the current instruction required sequential execution, a PC-relative branch or jump, or a JALR target. I did not choose this organization because I had demonstrated that it would produce the fastest processor. My goal was to establish clear responsibilities between the modules so that I could understand each part of the control architecture independently and verify its behavior with dedicated testbenches.
 
+Another adjustment involved the boundary between the Decoder and the Immediate Generator. Both modules had an `illegal` output for unsupported opcodes. Initially, I treated R-type instructions as illegal in the Immediate Generator because they do not contain an immediate field. However, an instruction that does not require an immediate is not necessarily an illegal instruction. I revised the Immediate Generator to recognize R-type instructions as valid and output `32'b0` for them. This made its behavior consistent with the Decoder and prevented a legal instruction from incorrectly triggering the processor's illegal-instruction indication.
+
 ### 2.4 Lessons in Control Architecture
 
 Revising the ALU Controller taught me that instructions sharing the same execution hardware do not necessarily share the same decoding rules. Separating R-type and I-type control allowed me to interpret their instruction fields correctly instead of relying on an overly broad classification. The branch logic taught me a related but distinct lesson. Multiple instructions can share the same underlying computation while requiring different decisions about how the result is used. By separating instruction decoding, ALU operation selection, comparison, and branch decisions, I developed a clearer understanding of how control responsibilities could be distributed across the processor.
+
+
+
+## 3. Designing the Memory System
+
+My initial understanding of memory came from the kitchen analogy I had used while learning about the register file. Memory was the large storage room, located far from the cook, while the register file provided a small workspace close to the execution hardware. Videos explaining memory technologies and the memory hierarchy had already introduced me to the memory wall and the importance of data movement, but implementing memory in my own processor forced me to think about these concepts at a much more concrete level.
+
+### 3.1 Rethinking Memory Organization
+
+As I began connecting the processor modules, I learned to distinguish between Instruction Memory (IMEM), which stores the program, and Data Memory (DMEM), which stores data accessed by load and store instructions. This also changed how I understood the Program Counter. Initially, I imagined the PC as a simple counter moving from one instruction to the next. Learning that sequential execution advances by `PC + 4` made me realize that my instruction memory did not store one complete instruction at each byte address. Instead, each 32-bit instruction occupied four consecutive bytes.
+
+Both memories in my final implementation are byte-addressed and have a capacity of 16 KiB. Instruction Memory combines four consecutive bytes to produce a 32-bit instruction, while Data Memory supports accesses of different widths. For the RV32I base ISA without compressed instructions, instruction addresses must be four-byte aligned, meaning that the lowest two bits of a valid instruction address are zero.
+
+This led me to question my own design: **did Instruction Memory really need to be byte-addressed? Why not store an entire 32-bit instruction at each memory entry?** Byte addressing was clearly useful for Data Memory because the processor needed to support byte, halfword, and word accesses. Instruction Memory, however, only needed to fetch complete 32-bit instructions.
+
+At first, I thought changing IMEM to word addressing would require modifying the PC Adder and several other modules that depended on PC values. Later, I understood that the internal memory organization and the architectural address did not have to be identical. A word-organized IMEM could still accept a byte-addressed PC and use its upper address bits to select the corresponding instruction. I retained the byte-addressed implementation, but exploring this alternative helped me distinguish the processor's architectural addressing rules from the internal organization of a memory module.
+
+### 3.2 Designing Data Memory Access
+
+Another important part of implementing Data Memory was understanding the relationship between combinational reads and synchronous writes. My initial intuition was simple: reading retrieves an existing value, while writing changes stored state. I therefore implemented combinational reads and clock-controlled writes, using separate Verilog blocks.
+
+This choice also helped me understand the timing of my single-cycle processor. Between active clock edges, the current architectural state drives the combinational datapath. The processor calculates addresses, retrieves data, selects results, and prepares the values that may update architectural state. At the next active clock edge, enabled state elements—including the register file, PC, and Data Memory writes—capture their new values. The clock period must be long enough for the relevant combinational paths to settle before that edge.
+
+As I expanded the supported instruction set, Data Memory became more complicated than Instruction Memory. Initially, I thought of it mainly as a place to read and write complete values. Supporting `LB`, `LH`, `LW`, `LBU`, `LHU`, `SB`, `SH`, and `SW` required it to interpret the instruction's `funct3` field and handle different access widths.
+
+| Access | Behavior |
+| --- | --- |
+| `LB` | Read one byte and sign-extend it to 32 bits |
+| `LBU` | Read one byte and zero-extend it to 32 bits |
+| `LH` | Read two bytes and sign-extend the halfword |
+| `LHU` | Read two bytes and zero-extend the halfword |
+| `LW` | Read four bytes to form a 32-bit word |
+| `SB` | Write the lowest byte of the source register |
+| `SH` | Write the lowest two bytes of the source register |
+| `SW` | Write all four bytes of the source register |
+
+The distinction between signed and unsigned loads was especially important. Both operations retrieve the same stored bits, but they interpret those bits differently when extending the result to 32 bits. Stores, on the other hand, select how many of the source register's lower bytes are written to memory.
+
+### 3.3 Implementing Little-Endian Storage
+
+My initial memory implementation used big-endian byte ordering. However, I later decided to change it to little-endian because I found the relationship between the least significant byte and the lowest memory address more intuitive. I also wanted the memory organization to be consistent with the little-endian RISC-V software and memory images used in the project.
+
+In little-endian storage, the least significant byte of a multi-byte value is placed at the lowest memory address. For example, storing `0x12345678` produces the following layout:
+
+| Address | Stored Byte |
+| --- | --- |
+| `addr + 0` | `0x78` |
+| `addr + 1` | `0x56` |
+| `addr + 2` | `0x34` |
+| `addr + 3` | `0x12` |
+
+This ordering must be applied consistently to both loads and stores. A word load reconstructs the value by placing the byte at the lowest address in bits `[7:0]`, while a word store performs the reverse operation. Halfword accesses follow the same principle.
+
+Changing the byte order also produced one of my more frustrating debugging experiences. When I converted Data Memory from big-endian to little-endian, I overlooked part of the original implementation. The resulting inconsistency caused verification failures that took time to trace back to the memory byte ordering. Once I found and corrected the remaining code, the memory behavior became consistent with the intended little-endian organization.
+
+### 3.4 Separating Control Validation from Memory Writes
+
+While implementing Data Memory, I also encountered a problem with the responsibility for generating `illegal_control`. I was accustomed to writing a `default` branch for each `case` statement, so my initial implementation attempted to handle illegal operations in both the combinational read logic and the sequential write logic. I eventually realized that this arrangement gave two different procedural blocks responsibility for driving the same signal. I revised the design so that illegal-operation detection was handled by combinational control logic, while the sequential block remained responsible for performing permitted memory writes at the active clock edge.
+
+This separation made the behavior easier to reason about. The control logic checks the requested operation and produces the corresponding validity indication. The read path produces the requested data combinationally, while valid, enabled stores update memory synchronously.
+
+Although this was a smaller change than redesigning the ALU Controller, it reinforced a similar lesson: **a control signal should have one clearly defined source, and the responsibility for deciding whether an operation is valid should be separated from the responsibility for updating stored state.**
+
+
+## 4. Running Compiled C on a Bare-Metal CPU
+
+After completing the processor and its initial integration tests, I wanted to move beyond manually prepared instructions and execute a program compiled from C. This introduced a new challenge: although my CPU could execute RV32I instructions, it did not have an operating system, a standard C runtime, or a conventional program loader. I needed to understand how the software toolchain produced machine code and how to prepare that code and its data for my own memory system.
+
+### 4.1 From Assembly to Compiled C
+
+I began by installing the xPack GNU RISC-V Embedded GCC toolchain for Windows and learning the roles of three tools: GCC for compiling, assembling, and linking; `objdump` for inspecting the instructions inside an ELF file; and `objcopy` for extracting a raw binary image.
+
+My first experiment used a small hand-written assembly program. I compiled it for RV32I, inspected the resulting instructions, converted the ELF file into a binary image, and used a Python script to generate the text file required by Verilog's `$readmemb`.
+
+The initial workflow was:
+
+```text
+Assembly source
+      |
+      v
+     GCC
+      |
+      v
+   ELF file
+      |
+      +----> objdump (inspect instructions)
+      |
+      v
+   objcopy
+      |
+      v
+  Raw binary
+      |
+      v
+Python converter
+      |
+      v
+  bin_code.txt
+      |
+      v
+Instruction Memory
+```
+
+The experiment succeeded: Instruction Memory loaded the generated machine code, and the processor passed the corresponding test. However, this was still a relatively simple program that did not exercise Data Memory. I had confirmed that the basic instruction-loading workflow worked, but not that my processor could execute a compiled C program with functions, stack usage, and initialized global variables.
+
+For the C program, I used compiler options including `-march=rv32i`, `-mabi=ilp32`, `-O1`, and `-ffreestanding`. I also disabled the standard startup files and libraries because my processor had no conventional runtime environment. Using `objdump` with `no-aliases,numeric` helped me inspect the resulting instructions using their explicit register numbers and instruction forms, making them easier to compare with my RTL implementation.
+
+### 4.2 Bootstrapping the Processor
+
+I designed the final C program to exercise more than arithmetic instructions. It included a function call, a structure, conditional execution, and an initialized global variable. I deliberately declared `global_offset` as `volatile` so that the compiler would preserve accesses to the variable rather than simply substituting its known value. I also used GCC's `noinline` attribute to preserve a separate function call, allowing me to observe the corresponding RISC-V calling convention and stack behavior.
+
+This exposed a problem that my earlier assembly test had not encountered. When I inspected the compiled instructions, I found a stack allocation instruction:
+
+```asm
+addi x2, x2, -32
+```
+
+In the RISC-V calling convention, `x2` is the stack pointer. My register file initialized it to zero, so subtracting 32 produced `0xFFFFFFE0`, far outside my 16 KiB Data Memory address range of `0x00000000` to `0x00003FFF`. I realized that compiling a C program was not enough. A normal execution environment would establish the initial stack pointer before running the program, but my bare-metal processor had no such environment. I therefore wrote `startup.S` to perform the initialization explicitly:
+
+```asm
+lui  x2, 0x4
+addi x2, x2, -16
+```
+
+These instructions initialize the stack pointer to `0x00003FF0`, near the top of Data Memory. After a 32-byte stack allocation, it becomes `0x00003FD0`, which is within the implemented memory range.
+
+The startup code then calls `main`, providing a controlled entry point for the compiled C program. This was an important change in how I understood software execution: the first instruction of a program cannot always be its application logic. Even a small bare-metal program may depend on architectural state that must be established before its compiled code can execute correctly.
+
+### 4.3 Bridging ELF and Harvard Memory
+
+Once the stack pointer problem was addressed, I encountered another limitation of my earlier workflow. The simple assembly program only required an instruction image, but the C program contained an initialized global variable:
+
+```c
+volatile int global_offset = 50000;
+```
+
+My processor uses separate Instruction Memory and Data Memory arrays. Loading the entire raw binary into IMEM would not initialize the global variable in DMEM, even though the compiler and linker had already assigned it a location in the program image.
+
+I inspected the ELF file and its binary representation to identify the locations required by each memory. In my final program, the instruction bytes occupied the region beginning at `0x0000`, while the initialized value of `global_offset` was located at `0x1070`. The program also used the following memory location, beginning at `0x1074`, for its final result.
+
+I then wrote a Python converter to split the binary image into two separate initialization files:
+
+```text
+C source + startup.S
+          |
+          v
+         GCC
+          |
+          v
+       ELF file
+          |
+          +----> objdump
+          |
+          v
+        objcopy
+          |
+          v
+      Raw binary
+          |
+          v
+    Python converter
+       /        \
+      v          v
+ IMEM image   DMEM image
+      |          |
+      v          v
+     IMEM       DMEM
+```
+
+The converter preserved the appropriate byte addresses and filled unused locations with zeros. This was necessary because my Verilog memories were byte-addressed arrays rather than a conventional program loader capable of interpreting an ELF file directly.
+
+One of the most useful checks was confirming that the initialized global variable had actually reached the Data Memory image. The value `50000` is `0x0000C350`, so its little-endian representation at addresses `0x1070` through `0x1073` was:
+
+```text
+Address    Byte
+0x1070     0x50
+0x1071     0xC3
+0x1072     0x00
+0x1073     0x00
+```
+
+This confirmed that the value came from the compiled C program and had been transferred through the toolchain and converter, rather than being manually inserted into the testbench.
+
+### 4.4 Verifying the Complete Execution Flow
+
+With the startup code and separate memory images prepared, I could finally test the complete path from C source code to processor execution. The CPU fetched the compiled instructions from IMEM, used the initialized stack pointer for function execution, accessed the global variable in DMEM, and wrote its computed result back to memory.
+
+The final testbench checked more than whether the simulation completed. It verified that execution reached the expected final loop, that `global_offset` retained its initialized value of `50000`, and that the computed result was `150`. It also checked the stack pointer and monitored illegal-instruction and illegal-control indications throughout execution.
+
+This final test connected several parts of the project that I had previously verified independently. The ALU, control logic, register file, memories, branch and jump behavior, and software toolchain all had to work together for the compiled program to produce the expected result.
+
+
+## 5. Debugging and Verification Lessons
+
+
+### 5.1 Improving My Verification Approach
+
+Writing testbenches gradually changed the way I thought about verification. Beyond checking whether each module produced the expected outputs, I sometimes designed additional experiments to better understand the behavior I was observing in simulation.
+
+One example came from testing the Register File. My testbench already included a runtime asynchronous reset test, which asserted `rst_n` without waiting for a clock edge and verified that registers returned zero. However, I became curious about the registers' initial state. If a register already appeared to contain zero before reset, simply observing zero afterward would not help me visualize what the reset had changed. To investigate this, I deliberately selected nonzero register addresses before initialization and observed their unknown (`X`) values in simulation. After asserting reset, I could see those values become zero. This was an additional experiment to understand the initial state and reset behavior, rather than a replacement for the existing reset tests.
+
+<p align="center">
+  <img src="/images/regfile_reset_experiment.png" width="90%" alt="Register File reset experiment showing unknown values before reset and zero values afterward">
+  <br>
+  <em>Figure 6. An early Register File simulation experiment showing unknown register values before reset and zero values after reset was asserted.</em>
+</p>
+
+I also became more deliberate about testbench timing. Instead of relying entirely on fixed delays such as `#10`, I began synchronizing some checks with `@(posedge clk)` and inserting a short delay before examining the outputs. This allowed the simulator to process clock-triggered nonblocking assignments before the testbench checked their results.
+
+
+### 5.2 Debugging the Simulation Environment
+
+Not every problem I encountered came from incorrect Verilog logic. Some of the most frustrating failures were caused by the simulation environment and the way I organized my project.
+
+One particularly simple mistake was modifying the source code but forgetting to save the file before compiling. I kept investigating why my changes had not fixed the problem, even though the simulator was still reading the previous version of the code.
+
+I encountered another issue when loading machine code into Instruction Memory. I learned that `$readmemb` normally resolves a relative file path from the simulator's current working directory, rather than automatically searching relative to the Verilog source file. The location from which I executed `vvp` therefore mattered when loading `bin_code.txt`.
+
+As the processor grew, manually listing every Verilog source file in the terminal became increasingly inconvenient. I learned to use an Icarus Verilog command file, `files.f`, to maintain the list of modules required for compilation:
+
+```powershell
+iverilog -g2012 -o RV32I_top_sim -c files.f
+```
+
+Even this small improvement led to an unexpected problem. Compilation repeatedly failed with the message `File name not terminated`. After investigating the file list, I discovered that the final line of `files.f` was missing its terminating newline. Adding it resolved the parsing error.
+
+These incidents were small compared with implementing the datapath or debugging the control logic, but they were part of learning to manage a growing hardware project. They also reminded me to check the source files, build configuration, and execution environment before assuming that every simulation failure originated in the RTL.
