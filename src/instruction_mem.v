@@ -13,7 +13,7 @@ module imem #(parameter DEPTH = 16384) (
     };
 
     initial begin
-    $readmemb("imem_code.txt", mem);
+    $readmemb("memory/final_imem_code.txt", mem);
     end
     
 endmodule
