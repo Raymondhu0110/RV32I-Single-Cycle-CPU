@@ -403,7 +403,7 @@ Writing testbenches gradually changed the way I thought about verification. Beyo
 One example came from testing the Register File. My testbench already included a runtime asynchronous reset test, which asserted `rst_n` without waiting for a clock edge and verified that registers returned zero. However, I became curious about the registers' initial state. If a register already appeared to contain zero before reset, simply observing zero afterward would not help me visualize what the reset had changed. To investigate this, I deliberately selected nonzero register addresses before initialization and observed their unknown (`X`) values in simulation. After asserting reset, I could see those values become zero. This was an additional experiment to understand the initial state and reset behavior, rather than a replacement for the existing reset tests.
 
 <p align="center">
-  <img src="/images/regfile_reset_experiment.png" width="90%" alt="Register File reset experiment showing unknown values before reset and zero values afterward">
+  <img src="/images/regfile_reset_experiment.png" width="75%" alt="Register File reset experiment showing unknown values before reset and zero values afterward">
   <br>
   <em>Figure 6. An early Register File simulation experiment showing unknown register values before reset and zero values after reset was asserted.</em>
 </p>
