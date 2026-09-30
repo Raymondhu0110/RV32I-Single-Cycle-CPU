@@ -36,10 +36,11 @@ Both files contain 16,384 lines of 8-bit binary values. Unused addresses are ini
 
 The generated files are loaded into the processor's separate instruction and data memories using `$readmemb`.
 
-See [Memory README](../memory/README.md) for the memory layout.
+See [Memory Images](../memory/README.md) for the early assembly test and the memory files used in each verification stage.
+
 
 ## Verification
 
 The generated memory images are used by `RV32I_final_tb.v` to execute the compiled C program on the single-cycle processor.
 
-See [Verification](../docs/verification.md) for the final test results.
+See [Verification](../docs/verification.md) for the test coverage and results.
