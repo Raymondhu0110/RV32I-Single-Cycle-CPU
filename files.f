@@ -12,5 +12,4 @@ src/pc_adder.v
 src/PC.v
 src/regfile.v
 src/RV32I_top.v
-tb/RV32I_final_tb.v
 
