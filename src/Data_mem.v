@@ -80,6 +80,6 @@ module dmem #(parameter DEPTH = 16384)(
     end   
 
     initial begin
-    $readmemb("dmem_data.txt", mem);
+    $readmemb("memory/final_dmem_code.txt", mem);
     end
 endmodule
