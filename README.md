@@ -40,7 +40,7 @@ The program counter (PC) addresses the instruction memory, and the decoded instr
 | Upper | LUI, AUIPC |
 | Jump | JAL, JALR |
 
-This project targets the RV32I base integer ISA and does not implement extensions such as M, A, F, D, C, or V.
+This project implements the listed instructions from the RV32I base integer ISA. System instructions and extensions such as M, A, F, D, C, and V are not implemented.
 
 
 ## Memory Organization
@@ -96,9 +96,10 @@ Verification was performed at both the module and processor levels, followed by 
 </p>
 
 
-The final integration test completed with **6/6 checks passed**, including the expected `global_offset = 50000`, `final_result = 150`, valid stack-pointer placement, successful program termination at the final loop, and no illegal-condition assertion during execution.
+The final end-to-end test completed with **6/6 checks passed**, including the expected `global_offset = 50000`, `final_result = 150`, valid stack-pointer placement, reaching the expected final loop, and no illegal-condition assertion during execution.
 
-See [Verification Details](docs/verification.md) for the complete verification methodology and module-level test coverage.
+See [Verification Details](docs/verification.md) for the test coverage and results, or [Testbenches](tb/README.md) for compilation and simulation commands.
+
 
 
 ## Bare-Metal C Program Execution 
@@ -107,21 +108,27 @@ The processor was tested with a bare-metal C program compiled for RV32I using th
 
 ```text
 startup.S + final_code.c
-          ↓
-   RISC-V GCC (RV32I)
-          ↓
+          |
+          v
+     RISC-V GCC
+          |
+          v
      ELF executable
-          ↓
-       objcopy
-          ↓
-     Raw binary
-          ↓
+          |
+          v
+        objcopy
+          |
+          v
+      Raw binary
+          |
+          v
 final_bin_to_readmemb.py
-          ↓
-final_imem_code.txt
-final_dmem_code.txt
-          ↓
-   RV32I Processor
+          |
+          v
+ imem_code.txt / dmem_data.txt
+          |
+          v
+     RV32I Processor
 ```
 The final program exercises several processor capabilities through compiler-generated instructions, including:
 
