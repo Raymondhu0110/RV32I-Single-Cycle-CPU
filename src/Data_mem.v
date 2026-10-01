@@ -1,4 +1,7 @@
-module dmem #(parameter DEPTH = 16384)(
+module dmem #(
+    parameter DEPTH = 16384
+    parameter MEM_FILE = "memory/final_dmem_code.txt"
+)(
     input clk,
     
     input wire [31:0] alu_result,
@@ -80,6 +83,6 @@ module dmem #(parameter DEPTH = 16384)(
     end   
 
     initial begin
-    $readmemb("memory/final_dmem_code.txt", mem);
+    $readmemb(MEM_FILE, mem);
     end
 endmodule
