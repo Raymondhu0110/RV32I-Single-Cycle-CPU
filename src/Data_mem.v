@@ -1,5 +1,5 @@
 module dmem #(
-    parameter DEPTH = 16384
+    parameter DEPTH = 16384,
     parameter MEM_FILE = "memory/final_dmem_code.txt"
 )(
     input clk,
