@@ -90,7 +90,7 @@ Verification was performed at both the module and processor levels, followed by 
 - **End-to-end software execution:** `RV32I_final_tb.v` executes a bare-metal C program compiled with the RISC-V GCC toolchain and verifies the resulting processor and memory state.
 
 <p align="center">
-  <img src="/images/final_verification.png" width="75%" alt="Final RV32I CPU verification results">
+  <img src="images/final_verification.png" width="75%" alt="Final RV32I CPU verification results">
   <br>
   <em>Figure 2. Final end-to-end verification results showing all six checks passed after executing the GCC-compiled bare-metal C program.</em>
 </p>
