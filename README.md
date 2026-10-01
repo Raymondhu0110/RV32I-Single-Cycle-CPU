@@ -125,7 +125,8 @@ startup.S + final_code.c
 final_bin_to_readmemb.py
           |
           v
- imem_code.txt / dmem_data.txt
+ memory/final_imem_code.txt
+ memory/final_dmem_code.txt
           |
           v
      RV32I Processor
