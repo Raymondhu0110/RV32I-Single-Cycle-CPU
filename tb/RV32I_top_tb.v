@@ -42,7 +42,9 @@ module RV32I_top_tb;
 
 
     RV32I_top #(
-        .DEPTH(DEPTH)
+        .DEPTH(DEPTH),
+        .IMEM_FILE("memory/top_imem_code.txt"),
+        .DMEM_FILE("memory/top_dmem_code.txt")
     ) dut (
         .clk(clk),
         .rst_n(rst_n),
