@@ -1,5 +1,5 @@
 module imem #(
-    parameter DEPTH = 16384
+    parameter DEPTH = 16384,
     parameter MEM_FILE = "memory/final_imem_code.txt"
 ) (
     input wire  [31:0]       raddr,
