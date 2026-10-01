@@ -48,7 +48,7 @@ The program counter and instruction memory changed my understanding again. My fi
 
 That question eventually led me to branches and jumps. Before I understood instruction formats or even the term *single-cycle datapath*, I drew my first processor architecture from this task-oriented mental model. I imagined software producing a list of operations, instruction memory holding that list, and the processor moving through it while the decoder directed the required hardware.
 
-<p align="center"> <img src="/images/datapath_initial.png" width="75%" alt="Initial processor concept"> <br> <em>Figure 1. Initial processor concept before instruction formats and detailed control paths were understood.</em> </p>
+<p align="center"> <img src="images/datapath_initial.png" width="75%" alt="Initial processor concept"> <br> <em>Figure 1. Initial processor concept before instruction formats and detailed control paths were understood.</em> </p>
 
 The drawing was incomplete and contained assumptions that were later revised, but it was useful because it exposed what I still could not explain. I could draw blocks and arrows, but I did not yet understand how the processor decided which paths should actually carry meaningful data for each instruction. **Multiplexers and control signals provided the missing idea.**
 
