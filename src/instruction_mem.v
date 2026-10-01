@@ -1,4 +1,7 @@
-module imem #(parameter DEPTH = 16384) (
+module imem #(
+    parameter DEPTH = 16384
+    parameter MEM_FILE = "memory/final_imem_code.txt"
+) (
     input wire  [31:0]       raddr,
     output wire [31:0] instruction
 );
@@ -13,7 +16,7 @@ module imem #(parameter DEPTH = 16384) (
     };
 
     initial begin
-    $readmemb("memory/final_imem_code.txt", mem);
+    $readmemb(MEM_FILE, mem);
     end
     
 endmodule
