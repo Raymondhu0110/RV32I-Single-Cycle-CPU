@@ -1,4 +1,3 @@
-
 # Programs
 
 This directory contains the bare-metal C program, startup assembly, and binary conversion script used for the final RV32I processor verification.
@@ -19,9 +18,11 @@ riscv-none-elf-objdump -d -M no-aliases,numeric final_program.elf
 # Extract the raw binary.
 riscv-none-elf-objcopy -O binary final_program.elf final_program.bin
 
-# Generate separate IMEM and DMEM initialization files.
+# Generate the final IMEM and DMEM initialization files.
 python final_bin_to_readmemb.py
 ```
+
+The conversion script writes the generated memory images directly to the `memory/` directory. No additional copying or renaming is required.
 
 ## Generated Memory Images
 
@@ -29,18 +30,21 @@ The conversion script generates two byte-addressed memory images:
 
 | File | Contents |
 | --- | --- |
-| `imem_code.txt` | Instruction bytes from addresses `0x0000`–`0x006F`. |
-| `dmem_data.txt` | Initialized global data from addresses `0x1070`–`0x1073`. |
+| `memory/final_imem_code.txt` | Instruction bytes from addresses `0x0000`–`0x006F`. |
+| `memory/final_dmem_code.txt` | Initialized global data from addresses `0x1070`–`0x1073`. |
 
 Both files contain 16,384 lines of 8-bit binary values. Unused addresses are initialized to zero.
+
+Running the conversion script again overwrites the existing final memory images.
 
 The generated files are loaded into the processor's separate instruction and data memories using `$readmemb`.
 
 See [Memory Images](../memory/README.md) for the early assembly test and the memory files used in each verification stage.
 
-
 ## Verification
 
 The generated memory images are used by `RV32I_final_tb.v` to execute the compiled C program on the single-cycle processor.
 
-See [Verification](../docs/verification.md) for the test coverage and results.
+Run the simulation from the repository root directory so that the relative memory initialization paths resolve correctly.
+
+See [Testbenches](../tb/README.md) for compilation and simulation commands, and [Verification](../docs/verification.md) for the test coverage and results.
