@@ -20,7 +20,7 @@ A 32-bit single-cycle RV32I processor implemented in Verilog, featuring separate
 The processor is organized as a single-cycle datapath with separate instruction and data memories. Instruction decoding, immediate generation, ALU execution, branch/jump decisions, memory access, and register write-back are completed within a single instruction cycle.
 
 <p align="center">
-  <img src="/images/datapath_final.png" width="85%" alt="RV32I single-cycle processor datapath">
+  <img src="images/datapath_final.png" width="85%" alt="RV32I single-cycle processor datapath">
   <br>
   <em>Figure 1. RV32I single-cycle processor datapath, illustrating the instruction decoding, ALU, memory access, register write-back, and next-PC selection paths.</em>
 </p>
