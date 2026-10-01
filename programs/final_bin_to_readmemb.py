@@ -8,6 +8,11 @@
 # imem_code.txt   dmem_data.txt
 # ==========================================
 
+from pathlib import Path
+
+# Resolve paths relative to this Python script.
+PROGRAMS_DIR = Path(__file__).resolve().parent
+MEMORY_DIR = PROGRAMS_DIR.parent / "memory"
 MEM_DEPTH = 16384
 
 # Final Program memory layout
@@ -21,7 +26,7 @@ DATA_END   = 0x1073
 # ==========================================
 # Read final binary
 # ==========================================
-with open("final_program.bin", "rb") as f:
+with open(PROGRAMS_DIR / "final_program.bin", "rb") as f:
     program = f.read()
 
 
@@ -33,7 +38,7 @@ with open("final_program.bin", "rb") as f:
 #
 # Everything else = 0
 # ==========================================
-with open("imem_code.txt", "w") as f:
+with open(MEMORY_DIR / "final_imem_code.txt", "w") as f:
 
     for address in range(MEM_DEPTH):
 
@@ -53,7 +58,7 @@ with open("imem_code.txt", "w") as f:
 #
 # Everything else initially = 0
 # ==========================================
-with open("dmem_data.txt", "w") as f:
+with open(MEMORY_DIR / "final_dmem_code.txt", "w") as f:
 
     for address in range(MEM_DEPTH):
 
@@ -66,5 +71,5 @@ with open("dmem_data.txt", "w") as f:
 
 
 print("Generation complete.")
-print("imem_code.txt generated.")
-print("dmem_data.txt generated.")
+print("memory/final_imem_code.txt generated.")
+print("memory/final_dmem_code.txt generated.")
