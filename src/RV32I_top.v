@@ -1,5 +1,7 @@
 module RV32I_top #(
-    parameter DEPTH = 16384
+    parameter DEPTH = 16384,
+    parameter IMEM_FILE = "memory/final_imem_code.txt",
+    parameter DMEM_FILE = "memory/final_dmem_code.txt"
 ) (
     input wire clk,
     input wire rst_n,
@@ -75,7 +77,8 @@ module RV32I_top #(
     );
     
     imem #(
-        .DEPTH(DEPTH)
+        .DEPTH(DEPTH),
+        .MEM_FILE(IMEM_FILE)
     )imem_unit(
         .raddr(pc),
         .instruction(instruction)
@@ -164,7 +167,8 @@ module RV32I_top #(
     );
 
     dmem #(
-        .DEPTH(DEPTH)
+        .DEPTH(DEPTH),
+        .MEM_FILE(DMEM_FILE)
     ) dmem_unit (
         .clk(clk),
 
